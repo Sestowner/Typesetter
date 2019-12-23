@@ -115,32 +115,24 @@ function access($attr, $path, $data, $volume, $isDir, $relpath){
 }
 
 /**
- * Check files by extension if gp_restrict_uploads
+ * Convert allowed file extensions to MIME types
  *
  */
-function upload_check($cmd, $args){
-	if(gp_restrict_uploads && !empty($args['FILES'])){
-		$files = empty($args['chunk']) ? $args['FILES']['upload']['name'] : array(preg_replace('/\.\d+_\d+.part$/', '', $args['chunk'], 1));
-		foreach($files as $i => $name){
-			if( !\gp\admin\Content\Uploaded::AllowedExtension($name) ){
-				return array(
-					'preventexec'	=> true,
-					'results'		=> array('error' => 'errUploadMime')
-				);
-			}
+function exts2mimes(){
+	if (!gp_restrict_uploads)
+		return array('all');
+
+	$allowedExtensions = \gp\admin\Content\Uploaded::AllowedExtensions();
+	$mimeTable = elFinderVolumeDriver::getMimeTable();
+	$mimes = array();
+
+	foreach($allowedExtensions as $i=>$ext){
+		if (isset($mimeTable[$ext])){
+			$mimes []= $mimeTable[$ext];
 		}
 	}
-	return true;
-}
 
-function rename_check($cmd, $args){
-	if( gp_restrict_uploads && !\gp\admin\Content\Uploaded::AllowedExtension($args['name']) ){
-		return array(
-			'preventexec'	=> true,
-			'results'		=> array('error' => 'errUploadMime')
-		);
-	}
-	return true;
+	return $mimes;
 }
 
 // Documentation for connector options:
@@ -157,17 +149,11 @@ $opts = array(
 			'URL'				=> \gp\tool::GetDir('data/_uploaded'),
 			//'trashHash'		=> 't1_Lw',								// elFinder's hash of trash folder
 			'winHashFix'		=> DIRECTORY_SEPARATOR !== '/',			// to make hash same to Linux one on windows too
-			// 'uploadDeny'			=> array('all'),					// All Mimetypes not allowed to upload
-			// 'uploadAllow'		=> array('image/x-ms-bmp', 'image/gif', 'image/jpeg', 'image/png', 'image/x-icon', 'text/plain'), // Mimetype `image` and `text/plain` allowed to upload
-			// 'uploadOrder'		=> array('deny', 'allow'),			// allowed Mimetype `image` and `text/plain` only
+			'uploadDeny'		=> array('all'),						// All Mimetypes not allowed to upload
+			'uploadAllow'		=> exts2mimes(), 						// Mimetypes converted from allowed extensions, allowed to upload
+			'uploadOrder'		=> array('deny', 'allow'),				// allowed only Mimetypes converted from allowed extensions
 			'accessControl'		=> 'access',							// disable and hide dot starting files (OPTIONAL)
 			//'uploadMaxSize'		=>'55M',
-			'attributes'		=> array(
-				array(
-					'pattern' => '/\.ph(p([3-7]?|-?s)|t(ml)?|ar)$/i',
-					'write'  => false,
-				)
-			),
 		),
 		// Trash volume
 		array(
@@ -184,8 +170,6 @@ $opts = array(
 	),
 	'bind' => array(
 		'duplicate upload rename rm paste resize' => array('\gp\admin\Content\Uploaded', 'FinderChange'), //drag+drop = cut+paste
-		'upload.pre'		=> array('upload_check'),
-		'rename.pre'		=> array('rename_check'),
 	)
 );
 

@@ -1474,7 +1474,7 @@ abstract class elFinderVolumeDriver
      * @return array
      * @author Naoki Sawada
      */
-    public function getMimeTable()
+    public static function getMimeTable()
     {
         // load mime.types
         if (!elFinderVolumeDriver::$mimetypesLoaded) {
